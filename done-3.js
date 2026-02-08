@@ -742,3 +742,613 @@ initialRender();
 
 /* expose store to console for debugging */
 window.RTSTORE = { STORE, saveStore, loadStore, genId, formatDate, todayKey };
+// ===================== Teacher Dashboard v2 JS =====================
+
+// ===== UTILITY FUNCTIONS =====
+function saveData(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+function loadData(key) {
+  const stored = localStorage.getItem(key);
+  return stored ? JSON.parse(stored) : [];
+}
+
+// ===== CLASSES MANAGEMENT =====
+const createClassForm = document.getElementById('create-class-form');
+const switchClassSelect = document.getElementById('switch-class');
+
+let classes = loadData('classes');
+
+function refreshClassDropdown() {
+  switchClassSelect.innerHTML = '<option value="">Select Class</option>';
+  classes.forEach(cls => {
+    const opt = document.createElement('option');
+    opt.value = cls.id;
+    opt.textContent = cls.name;
+    switchClassSelect.appendChild(opt);
+  });
+}
+
+createClassForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = createClassForm['class-name'].value;
+  const grade = createClassForm['grade'].value;
+  const subject = createClassForm['subject'].value;
+
+  const newClass = {
+    id: 'class_' + Date.now(),
+    name, grade, subject,
+    assignments: [],
+    quizzes: []
+  };
+  classes.push(newClass);
+  saveData('classes', classes);
+  refreshClassDropdown();
+  createClassForm.reset();
+});
+
+refreshClassDropdown();
+
+// ===== ASSIGNMENTS =====
+const assignmentForm = document.getElementById('create-assignment-form');
+const assignmentQuestionsContainer = document.getElementById('assignment-questions');
+
+let assignmentQuestionCount = 1;
+
+function createAssignmentQuestionElement(count) {
+  const div = document.createElement('div');
+  div.className = 'question';
+  div.dataset.number = count;
+  div.innerHTML = `
+    <label>Question ${count}</label>
+    <input type="text" placeholder="Enter question text">
+    <div class="options">
+      <label>Option 1</label><input type="text">
+      <label>Option 2</label><input type="text">
+    </div>
+    <button type="button" class="btn small add-option-btn">Add Option</button>
+  `;
+  const addOptionBtn = div.querySelector('.add-option-btn');
+  addOptionBtn.addEventListener('click', () => {
+    const optionsDiv = div.querySelector('.options');
+    const optionCount = optionsDiv.querySelectorAll('input').length + 1;
+    const label = document.createElement('label');
+    label.textContent = 'Option ' + optionCount;
+    const input = document.createElement('input');
+    optionsDiv.appendChild(label);
+    optionsDiv.appendChild(input);
+  });
+  return div;
+}
+
+document.getElementById('add-assignment-question-btn').addEventListener('click', () => {
+  assignmentQuestionCount++;
+  assignmentQuestionsContainer.appendChild(createAssignmentQuestionElement(assignmentQuestionCount));
+});
+
+assignmentForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const selectedClassId = switchClassSelect.value;
+  if (!selectedClassId) return alert('Select a class first!');
+  const cls = classes.find(c => c.id === selectedClassId);
+  if (!cls) return;
+
+  const assignment = {
+    id: 'a_' + Date.now(),
+    title: assignmentForm.querySelector('input[type="text"]').value,
+    instructions: assignmentForm.querySelector('textarea').value,
+    deadline: assignmentForm.querySelector('input[type="date"]').value,
+    lateSubmission: assignmentForm.querySelector('select').value,
+    priority: assignmentForm.querySelectorAll('select')[1].value,
+    difficulty: assignmentForm.querySelectorAll('select')[2].value,
+    sendTo: assignmentForm.querySelectorAll('input[type="text"]')[1].value,
+    questions: []
+  };
+
+  assignmentQuestionsContainer.querySelectorAll('.question').forEach(q => {
+    const questionText = q.querySelector('input[type="text"]').value;
+    const options = Array.from(q.querySelectorAll('.options input')).map(i => i.value);
+    assignment.questions.push({ questionText, options });
+  });
+
+  cls.assignments.push(assignment);
+  saveData('classes', classes);
+  assignmentForm.reset();
+  assignmentQuestionsContainer.innerHTML = '';
+  assignmentQuestionCount = 0;
+  alert('Assignment saved!');
+});
+
+// ===== QUIZZES =====
+const quizForm = document.getElementById('create-quiz-form');
+const quizQuestionsContainer = document.getElementById('quiz-questions');
+let quizQuestionCount = 1;
+
+function createQuizQuestionElement(count) {
+  const div = document.createElement('div');
+  div.className = 'question';
+  div.dataset.number = count;
+  div.innerHTML = `
+    <label>Question ${count}</label>
+    <input type="text" placeholder="Enter question text">
+    <div class="options">
+      <label>Option 1</label><input type="text">
+      <label>Option 2</label><input type="text">
+    </div>
+    <button type="button" class="btn small add-option-btn">Add Option</button>
+  `;
+  const addOptionBtn = div.querySelector('.add-option-btn');
+  addOptionBtn.addEventListener('click', () => {
+    const optionsDiv = div.querySelector('.options');
+    const optionCount = optionsDiv.querySelectorAll('input').length + 1;
+    const label = document.createElement('label');
+    label.textContent = 'Option ' + optionCount;
+    const input = document.createElement('input');
+    optionsDiv.appendChild(label);
+    optionsDiv.appendChild(input);
+  });
+  return div;
+}
+
+document.getElementById('add-quiz-question-btn').addEventListener('click', () => {
+  quizQuestionCount++;
+  quizQuestionsContainer.appendChild(createQuizQuestionElement(quizQuestionCount));
+});
+
+quizForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const selectedClassId = switchClassSelect.value;
+  if (!selectedClassId) return alert('Select a class first!');
+  const cls = classes.find(c => c.id === selectedClassId);
+  if (!cls) return;
+
+  const quiz = {
+    id: 'q_' + Date.now(),
+    title: quizForm.querySelector('input[type="text"]').value,
+    instructions: quizForm.querySelector('textarea').value,
+    deadline: quizForm.querySelector('input[type="date"]').value,
+    lateSubmission: quizForm.querySelector('select').value,
+    priority: quizForm.querySelectorAll('select')[1].value,
+    difficulty: quizForm.querySelectorAll('select')[2].value,
+    sendTo: quizForm.querySelectorAll('input[type="text"]')[1].value,
+    questions: []
+  };
+
+  quizQuestionsContainer.querySelectorAll('.question').forEach(q => {
+    const questionText = q.querySelector('input[type="text"]').value;
+    const options = Array.from(q.querySelectorAll('.options input')).map(i => i.value);
+    quiz.questions.push({ questionText, options });
+  });
+
+  cls.quizzes.push(quiz);
+  saveData('classes', classes);
+  quizForm.reset();
+  quizQuestionsContainer.innerHTML = '';
+  quizQuestionCount = 0;
+  alert('Quiz saved!');
+});
+
+// ===== LOAD CLASSES TO STUDENT VIEW =====
+function loadStudentViewAssignmentsQuizzes() {
+  const studentAssignmentsDiv = document.getElementById('student-assignments');
+  const studentQuizzesDiv = document.getElementById('student-quizzes');
+  if (!studentAssignmentsDiv || !studentQuizzesDiv) return;
+
+  studentAssignmentsDiv.innerHTML = '';
+  studentQuizzesDiv.innerHTML = '';
+
+  classes.forEach(cls => {
+    cls.assignments.forEach(a => {
+      const div = document.createElement('div');
+      div.className = 'student-assignment';
+      div.innerHTML = `<strong>${a.title}</strong> | Class: ${cls.name}`;
+      studentAssignmentsDiv.appendChild(div);
+    });
+    cls.quizzes.forEach(q => {
+      const div = document.createElement('div');
+      div.className = 'student-quiz';
+      div.innerHTML = `<strong>${q.title}</strong> | Class: ${cls.name}`;
+      studentQuizzesDiv.appendChild(div);
+    });
+  });
+}
+
+window.addEventListener('load', loadStudentViewAssignmentsQuizzes);
+/* =========================================================
+   TEACHER ↔ STUDENT SYNC ENGINE (FIXED)
+   SAFE TO PASTE UNDER OLD JS
+========================================================= */
+
+(function () {
+
+  /* ===================== STORAGE KEYS ===================== */
+  const STORAGE = {
+    CLASSES: "td_classes",
+    ASSIGNMENTS: "td_assignments",
+    QUIZZES: "td_quizzes",
+    SUBMISSIONS: "td_submissions",
+    STUDENT_STATE: "td_student_state"
+  };
+
+  /* ===================== HELPERS ===================== */
+  const load = (key, fallback = []) =>
+    JSON.parse(localStorage.getItem(key)) || fallback;
+
+  const save = (key, data) =>
+    localStorage.setItem(key, JSON.stringify(data));
+
+  const uid = () =>
+    Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+  /* ======================================================
+     STUDENT VIEW INITIALIZATION
+  ====================================================== */
+
+  const classSelect = document.getElementById("student-class-select");
+  const assignmentsBox = document.getElementById("student-assignments");
+  const quizzesBox = document.getElementById("student-quizzes");
+  const taskView = document.getElementById("student-task-view");
+
+  if (!classSelect) return; // student view not loaded
+
+  /* ===================== LOAD CLASSES ===================== */
+  function loadClassesForStudent() {
+    const classes = load(STORAGE.CLASSES);
+
+    classSelect.innerHTML = `<option value="">Select Class</option>`;
+
+    classes.forEach(cls => {
+      const opt = document.createElement("option");
+      opt.value = cls.id;
+      opt.textContent = `${cls.name} (${cls.subject})`;
+      classSelect.appendChild(opt);
+    });
+  }
+
+  loadClassesForStudent();
+
+  /* ===================== CLASS SELECTION ===================== */
+  classSelect.addEventListener("change", () => {
+    const classId = classSelect.value;
+    if (!classId) return;
+
+    const studentState = load(STORAGE.STUDENT_STATE, {});
+    studentState.classId = classId;
+    save(STORAGE.STUDENT_STATE, studentState);
+
+    renderAssignments(classId);
+    renderQuizzes(classId);
+  });
+
+  /* ======================================================
+     ASSIGNMENTS
+  ====================================================== */
+  function renderAssignments(classId) {
+    const assignments = load(STORAGE.ASSIGNMENTS)
+      .filter(a => a.classId === classId);
+
+    assignmentsBox.innerHTML = "";
+
+    if (!assignments.length) {
+      assignmentsBox.innerHTML = `<p class="tiny-muted">No assignments</p>`;
+      return;
+    }
+
+    assignments.forEach(a => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <strong>${a.title}</strong>
+        <p class="tiny-muted">${a.instructions || ""}</p>
+        <button class="btn small">Open</button>
+      `;
+      div.querySelector("button").onclick = () =>
+        openTask("assignment", a);
+      assignmentsBox.appendChild(div);
+    });
+  }
+
+  /* ======================================================
+     QUIZZES
+  ====================================================== */
+  function renderQuizzes(classId) {
+    const quizzes = load(STORAGE.QUIZZES)
+      .filter(q => q.classId === classId);
+
+    quizzesBox.innerHTML = "";
+
+    if (!quizzes.length) {
+      quizzesBox.innerHTML = `<p class="tiny-muted">No quizzes</p>`;
+      return;
+    }
+
+    quizzes.forEach(q => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <strong>${q.title}</strong>
+        <p class="tiny-muted">${q.instructions || ""}</p>
+        <button class="btn small">Start Quiz</button>
+      `;
+      div.querySelector("button").onclick = () =>
+        openTask("quiz", q);
+      quizzesBox.appendChild(div);
+    });
+  }
+
+  /* ======================================================
+     TASK / QUESTION ENGINE
+  ====================================================== */
+  let activeTask = null;
+  let qIndex = 0;
+  let answers = [];
+
+  const qContainer = document.getElementById("student-question-container");
+  const qText = document.querySelector(".question-text");
+  const optionsBox = document.querySelector(".options-container");
+  const writtenBox = document.querySelector(".written-answer textarea");
+
+  function openTask(type, task) {
+    activeTask = { ...task, type };
+    qIndex = 0;
+    answers = [];
+
+    document.getElementById("task-title").textContent = task.title;
+    document.getElementById("task-instructions").textContent =
+      task.instructions || "";
+
+    taskView.classList.remove("hidden");
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    const q = activeTask.questions[qIndex];
+    if (!q) return;
+
+    qText.textContent = `Q${qIndex + 1}. ${q.text}`;
+    optionsBox.innerHTML = "";
+    writtenBox.value = answers[qIndex]?.text || "";
+
+    if (q.options && q.options.length) {
+      q.options.forEach((opt, i) => {
+        const btn = document.createElement("button");
+        btn.className = "btn small";
+        btn.textContent = opt;
+        btn.onclick = () => {
+          answers[qIndex] = { choice: opt };
+        };
+        optionsBox.appendChild(btn);
+      });
+    }
+  }
+
+  document.getElementById("next-question-btn").onclick = () => {
+    saveAnswer();
+    if (qIndex < activeTask.questions.length - 1) {
+      qIndex++;
+      renderQuestion();
+    }
+  };
+
+  document.getElementById("prev-question-btn").onclick = () => {
+    saveAnswer();
+    if (qIndex > 0) {
+      qIndex--;
+      renderQuestion();
+    }
+  };
+
+  function saveAnswer() {
+    answers[qIndex] = {
+      ...(answers[qIndex] || {}),
+      text: writtenBox.value
+    };
+  }
+
+  /* ======================================================
+     SUBMIT TASK (STUDENT → TEACHER)
+  ====================================================== */
+  document.getElementById("submit-task-btn").onclick = () => {
+    saveAnswer();
+
+    const studentName =
+      document.getElementById("student-name").value || "Student";
+
+    const submissions = load(STORAGE.SUBMISSIONS);
+
+    submissions.push({
+      id: uid(),
+      taskId: activeTask.id,
+      taskType: activeTask.type,
+      classId: activeTask.classId,
+      studentName,
+      answers,
+      submittedAt: new Date().toISOString(),
+      status: "Submitted"
+    });
+
+    save(STORAGE.SUBMISSIONS, submissions);
+
+    alert("Submitted successfully!");
+
+    taskView.classList.add("hidden");
+  };
+
+})();
+/* =========================================================
+   GUARDIAN / PARENT DASHBOARD FIX
+   Supports "parent" role from signup
+========================================================= */
+
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  const STORE = {
+    USERS: "users",
+    ROUTINES: "routineData",
+    SUBMISSIONS: "td_submissions",
+    REMINDERS: "guardian_reminders",
+    CURRENT_USER: "currentUser"
+  };
+
+  const load = (k, d = []) => JSON.parse(localStorage.getItem(k)) || d;
+  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+  const linkBtn = $("guardian-link-btn");
+  if (!linkBtn) return;
+
+  const searchInput = $("guardian-student-search");
+  const summary = $("guardian-student-summary");
+  const routineBox = $("guardian-routine");
+  const academics = $("guardian-academics");
+  const submissionsBox = $("guardian-submissions");
+  const remindersBox = $("guardian-reminders");
+  const activityLog = $("guardian-activity-log");
+
+  const nameEl = $("g-student-name");
+  const classEl = $("g-student-class");
+  const lastActEl = $("g-last-activity");
+  const streakEl = $("g-streak");
+  const statusEl = $("g-status");
+
+  const missedEl = $("g-missed-days");
+  const inactiveEl = $("g-inactivity");
+
+  const taskTable = $("guardian-task-table");
+  const submissionDetails = $("guardian-submission-details");
+  const logList = $("guardian-log-list");
+
+  // ---- AUTO SHOW GUARDIAN DASHBOARD ----
+  const currentUser = load(STORE.CURRENT_USER, {});
+  if (currentUser.role === "parent") {
+    // hide other views
+    document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+    $("guardianView").classList.remove("hidden");
+
+    // auto-fill student if parent has linkedStudent
+    if (currentUser.linkedStudent) {
+      searchInput.value = currentUser.linkedStudent;
+      linkBtn.click();
+    }
+  }
+
+  // ---- LINK STUDENT ----
+  linkBtn.onclick = () => {
+    const key = searchInput.value.trim();
+    if (!key) return alert("Enter student name or ID");
+
+    const users = load(STORE.USERS, []);
+    const student = users.find(
+      u =>
+        u.role === "student" &&
+        (u.name === key || u.id === key || u.username === key)
+    );
+
+    if (!student) return alert("Student not found");
+
+    showAll(student);
+  };
+
+  // ---- LOAD ALL DASHBOARD SECTIONS ----
+  function showAll(student) {
+    summary.classList.remove("hidden");
+    routineBox.classList.remove("hidden");
+    academics.classList.remove("hidden");
+    remindersBox.classList.remove("hidden");
+    activityLog.classList.remove("hidden");
+
+    nameEl.textContent = student.name;
+    classEl.textContent = student.class || "—";
+    statusEl.textContent = "Active";
+
+    loadRoutine(student);
+    loadAcademics(student);
+    loadReminders();
+  }
+
+  // ---- ROUTINE ----
+  function loadRoutine(student) {
+    const routines = load(STORE.ROUTINES, {});
+    const data = routines[student.username || student.id] || {};
+
+    streakEl.textContent = data.streak || 0;
+    lastActEl.textContent = data.lastDate || "Never";
+
+    const missed = (data.missedDays || []).length;
+    missedEl.textContent = missed;
+    inactiveEl.textContent = missed > 0 ? missed + " days" : "0 days";
+
+    $("guardian-routine-calendar").innerHTML =
+      data.days?.length
+        ? data.days.map(d => `📅 ${d}`).join("<br>")
+        : "<p class='tiny-muted'>No routine activity yet</p>";
+  }
+
+  // ---- ACADEMICS ----
+  function loadAcademics(student) {
+    taskTable.innerHTML = "";
+
+    const submissions = load(STORE.SUBMISSIONS, []).filter(
+      s => s.studentName === student.name
+    );
+
+    if (!submissions.length) {
+      taskTable.innerHTML = "<tr><td colspan='5'>No academic records</td></tr>";
+      return;
+    }
+
+    submissions.forEach(sub => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${sub.taskTitle || sub.taskId}</td>
+        <td>${sub.taskType}</td>
+        <td>${sub.status}</td>
+        <td>${sub.deadline || "-"}</td>
+        <td>${new Date(sub.submittedAt).toLocaleString()}</td>
+      `;
+      tr.onclick = () => showSubmission(sub);
+      taskTable.appendChild(tr);
+    });
+  }
+
+  // ---- VIEW SUBMISSIONS ----
+  function showSubmission(sub) {
+    submissionsBox.classList.remove("hidden");
+    submissionDetails.innerHTML = "";
+
+    sub.answers.forEach((a, i) => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <strong>Question ${i + 1}</strong>
+        <p><em>Choice:</em> ${a.choice || "—"}</p>
+        <p><em>Written:</em> ${a.text || "—"}</p>
+      `;
+      submissionDetails.appendChild(div);
+    });
+  }
+
+  // ---- REMINDERS ----
+  $("guardian-send-reminder").onclick = () => {
+    const type = $("guardian-reminder-type").value;
+    const msg = $("guardian-reminder-message").value.trim();
+    if (!type || !msg) return alert("Complete reminder fields");
+
+    const logs = load(STORE.REMINDERS, []);
+    logs.push({ type, msg, date: new Date().toISOString() });
+    save(STORE.REMINDERS, logs);
+
+    logList.innerHTML += `<div class="chip">🔔 ${type}: ${msg}</div>`;
+    $("guardian-reminder-message").value = "";
+    alert("Reminder sent successfully");
+  };
+
+  function loadReminders() {
+    const logs = load(STORE.REMINDERS, []);
+    logList.innerHTML = logs.length
+      ? logs.map(l => `<div class="chip">🔔 ${l.type}: ${l.msg}</div>`).join("")
+      : "<p class='tiny-muted'>No reminders yet</p>";
+  }
+
+})();
